@@ -204,12 +204,12 @@ console.log(sumSalary({}));
 //3.
 
 type TObj = {
-  [key: string]: number | string;
+  [key: string]: number | string | boolean;
 };
 function multiplyNumeric(obj: TObj): TObj {
   for (let key in obj) {
-    if (typeof obj[key] == "number") {
-      obj[key] *= 2;
+    if (typeof obj[key] === "number") {
+      obj[key] = (obj[key] as number) * 2;
     }
   }
   return obj;
