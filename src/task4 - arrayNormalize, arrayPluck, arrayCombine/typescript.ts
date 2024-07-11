@@ -18,7 +18,6 @@ type TData = {
   age: string | number;
 };
 type TTestData4 = Array<number | string | boolean | TData | TTestData4>;
-type TScheme = { [key: string]: string };
 
 let testData: TTestData = [
   1,
@@ -113,7 +112,7 @@ let testData4: TTestData4 = [
 ];
 
 function array_skip_until(
-  arr: TTestData,
+  arr: Array<string | number | boolean>,
   value: number | string | boolean
 ): Array<string | number | boolean> {
   const indexOfElement = arr.indexOf(value);
@@ -143,13 +142,29 @@ function array_skip_until(
 //    Object => объект {name: 'string'}
 //    Синтаксис: array_normalize(arr: array, shema: string|Object[, transform: bool = false]): any[]
 
+type TScheme =
+  | "string"
+  | "number"
+  | "int"
+  | "float"
+  | "bool"
+  | "function"
+  | "array"
+  | { [key: string]: TScheme };
+
+type Result =
+  | number
+  | string
+  | boolean
+  | unknown[]
+  | Function
+  | { [key: string]: Result };
+
 function arrayNormalize(
-  arr: TTestData4,
-  scheme: TScheme | string,
+  arr: unknown[],
+  scheme: TScheme,
   transform: boolean = false
-): Array<
-  string | number | boolean | Function | TTestData4 | Array<TTestData4>
-> {
+): Result[] {
   if (scheme === "string") {
     return normalizeString(arr, transform);
   }
@@ -264,7 +279,7 @@ function normalizeFunction(
 
 function normalizeObject(
   arr: Array<unknown>,
-  scheme: TScheme,
+  scheme: Record<string, TScheme>,
   transform: boolean = false
 ): Array<string | number | boolean | Function> {
   const arrOfNormalizedObject = [];
@@ -313,7 +328,7 @@ console.log(result4);
 // let result2 = array_pluck(testData3, 'skills.php') // [0, 5, 8, 6, 0, 0]
 
 function arrayPluck(
-  arr: Array<TTestData3>,
+  arr: Array<string | number | boolean>,
   path: string
 ): Array<string | number | boolean> {
   return arr.reduce((accum, currObj) => {

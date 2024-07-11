@@ -1,9 +1,3 @@
-// Зробити інтерактивну консоль.
-// По localhost:3000 повинна відкриватисть HTML-сторінка з input елементом та кнопкою.
-// В  input можна ввести команду ls з усіма параметрами цієї команди і шлях.
-// По кліку на кнопку треба щоб переходило на сторінку /result і на екрані повинно видавати все, що видає команда ls
-// Обовязкова валідація: в input не можна вводити нічого окрім команди ls
-
 const http = require("node:http");
 const url = require("node:url");
 const path = require("node:path");
@@ -59,49 +53,21 @@ const ALLOWED_LONG_OPTIONS = [
   "--version",
 ];
 
-function createHTML(content = "", error = "") {
-  return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Interactive Console</title>
-        <style>
-          *,
-          html {
-              font-family: "Courier New", Helvetica, sans-serif;
-              font-size: large;
-          }
+async function createHTML(content = "", error = "") {
+  let template = await fsPromises.readFile(
+    path.resolve(CURR_DIR, "task12.html"),
+    "utf-8"
+  );
 
-          form {
-              margin-left: 25px;
-              margin-top: 25px;
-          }
+  if (error) {
+    template = template.replace("<!-- error -->", `<p>${error}</p>`);
+  }
 
-          input {
-              border: 1px solid black;
-          }
+  if (content) {
+    template = template.replace("<!-- content -->", `<pre>${content}</pre>`);
+  }
 
-          button {
-              padding: 0 5px;
-          }
-
-          p {
-              color: red;
-          }
-      </style>
-    </head>
-    <body>
-        <form action="/result" method="GET">
-            <input type="text" name="command" placeholder="Enter ls command" required>
-            <button type="submit">Enter</button>
-        </form>
-        ${error ? `<p>${error}</p>` : ""}
-        <pre>${content}</pre>
-    </body>
-    </html>
-  `;
+  return template;
 }
 
 function validateCommand(command) {
@@ -150,62 +116,114 @@ async function checkIfDirectory(dirPath) {
   return stat.isDirectory();
 }
 
-async function performLsCommand(command, res) {
-  const commandOptions = command.split(" ").slice(1);
-  const dirPath =
-    commandOptions.find((option) => !option.startsWith("-")) || DATA_DIR;
+async function performLsCommand(command) {
+  return new Promise(async (resolve, reject) => {
+    const commandOptions = command.split(" ").slice(1);
+    const dirPath =
+      commandOptions.find((option) => !option.startsWith("-")) || DATA_DIR;
 
-  if (!(await checkIfPathExist(dirPath))) {
-    res.writeHead(400);
-    return res.end(createHTML("", "Dir or file does not exist"));
-  }
+    if (!(await checkIfPathExist(dirPath))) {
+      return reject(new Error("Dir or file does not exist"));
+    }
 
-  if (!(await checkIfDirectory(dirPath))) {
-    res.writeHead(400);
-    return res.end(createHTML("", "Invalid path or not a directory"));
-  }
+    if (!(await checkIfDirectory(dirPath))) {
+      return reject(new Error("Invalid path or not a directory"));
+    }
 
-  const ls = spawn(LS, commandOptions);
+    const ls = spawn(LS, commandOptions);
 
-  ls.stdout.on("data", (data) => {
-    res.end(createHTML(data));
-  });
+    let dataRes = "";
+    let errRes = "";
 
-  ls.stderr.on("data", (err) => {
-    res.end(createHTML("", err));
+    ls.stdout.on("data", (data) => {
+      dataRes += data;
+    });
+
+    ls.stderr.on("data", (err) => {
+      errRes += err;
+    });
+
+    ls.on("exit", () => {
+      if (errRes) {
+        reject(errRes);
+      } else {
+        resolve(dataRes);
+      }
+    });
   });
 }
 
-const requestListener = (req, res) => {
+async function handleLsCommand(command) {
+  try {
+    const result = await performLsCommand(command);
+    return await createHTML(result);
+  } catch (error) {
+    return await createHTML("", error.message);
+  }
+}
+
+function response(res, html = "", code = 200) {
+  res.writeHead(code);
+  res.end(html);
+}
+
+function successResponse(res, html = "") {
+  return response(res, html);
+}
+
+function errResponse(res, html = "", code = 500) {
+  return response(res, html, code);
+}
+
+const requestListener = async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const { pathname, query } = parsedUrl;
 
   if (req.method === "GET" && pathname === "/") {
-    res.writeHead(200);
-    res.end(createHTML());
+    return await createHTML();
   } else if (req.method === "GET" && pathname === "/result") {
     const command = query.command || "";
 
     if (!validateCommand(command)) {
-      res.writeHead(400);
-      res.end(
-        createHTML(
-          "",
-          'Invalid command. Only "ls" commands are allowed and no special characters.'
-        )
+      const html = await createHTML(
+        "",
+        'Invalid command. Only "ls" commands are allowed and no special characters.'
       );
-      return;
+      throw new HTTPError(html, 400);
     }
 
-    performLsCommand(command, res);
+    return await handleLsCommand(command);
   } else {
-    res.writeHead(404);
-    res.end("404 Not Found");
+    throw new HTTPError("404 Not Found", 404);
   }
 };
 
-const server = http.createServer(requestListener);
+function wrapper(requestHandler) {
+  return async function (req, res) {
+    try {
+      const html = await requestHandler(req, res);
+      successResponse(res, html);
+    } catch (err) {
+      if (err instanceof HTTPError) {
+        errResponse(res, err.message, err.status);
+      } else {
+        errResponse(res, err.message || "unknown", 500);
+      }
+    }
+  };
+}
+
+const server = http.createServer(wrapper(requestListener));
 
 server.listen(3000, () => {
   console.log("Server is listening on port 3000");
 });
+
+class HTTPError extends Error {
+  status = 500;
+
+  constructor(message = "", status) {
+    super(message);
+    this.status = status || this.status;
+  }
+}
