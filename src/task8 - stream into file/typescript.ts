@@ -16,8 +16,11 @@ const sysInfo = JSON.stringify(proess);
 const sysInfoCopyFileName = "copied-sysinfo.json";
 const sysInfoCopyFile = path.resolve(DATA_DIR, sysInfoCopyFileName);
 
-const readableStream = new stream.Readable({ read(size) {} });
-readableStream.push(sysInfo);
+const readableStream = new stream.Readable({
+  read(size) {
+    return sysInfo;
+  },
+});
 
 const writableStream = fs.createWriteStream(sysInfoCopyFile);
 
