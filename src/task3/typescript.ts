@@ -208,8 +208,9 @@ type TObj = {
 };
 function multiplyNumeric(obj: TObj): TObj {
   for (let key in obj) {
-    if (typeof obj[key] === "number") {
-      obj[key] = (obj[key] as number) * 2;
+    const value = obj[key];
+    if (typeof value === "number") {
+      obj[key] = value * 2;
     }
   }
   return obj;
