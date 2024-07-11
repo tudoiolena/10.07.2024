@@ -186,14 +186,19 @@ let students: TStudent[] = [
     age: 18,
   },
 ];
-const getLanguages = (
-  students: TStudent[],
-  callback = (student: TStudent): boolean => true
-): string[] => {
+
+interface ILanguege {
+  languages: string[];
+}
+
+function getLanguages<Item extends ILanguege>(
+  students: Item[],
+  callback = (student: Item): boolean => true
+): Item[] {
   return students.reduce((languages, student) => {
     if (callback(student)) {
       return languages.concat(student.languages);
     }
     return languages;
   }, []);
-};
+}

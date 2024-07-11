@@ -104,6 +104,10 @@ type TItem2 = {
   category: string;
 };
 
+interface ICategory {
+  category: string;
+}
+
 function groupItemsByCategory(items: TItem2[]): {
   [category: string]: TItem2[];
 } {
