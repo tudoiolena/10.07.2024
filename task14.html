@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Photo Booth</title>
+    <style>
+        #photobooth {
+            width: 100%;
+            max-width: 500px;
+            margin: auto;
+        }
+
+        video,
+        canvas {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        video {
+            display: block;
+        }
+
+        canvas {
+            display: none
+        }
+
+        button {
+            padding: 15px 40px;
+            display: block;
+            margin: 20px auto;
+            font-size: 20px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="photobooth">
+        <video id="video" autoplay></video>
+        <button id="capture-button">Capture</button>
+        <canvas id="captured-image"></canvas>
+    </div>
+
+    <script defer src="dist/task14/typescript.js"></script>
+</body>
+
+</html>
