@@ -32,12 +32,40 @@
 </head>
 
 <body>
-    <form action="/result" method="GET">
-        <input type="text" name="command" placeholder="Enter ls command" required>
+    <form id="command-form">
+        <input type="text" id="command-input" name="command" placeholder="Enter ls command" required>
         <button type="submit">Enter</button>
     </form>
-    <!-- error -->
-    <!-- content -->
+
+    <div id="content"></div>
+    <div id="error"></div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:3000');
+
+        const form = document.getElementById('command-form');
+        const commandInput = document.getElementById('command-input');
+        const errorDiv = document.getElementById('error');
+        const contentDiv = document.getElementById('content');
+
+        ws.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+            if (data.error) {
+                errorDiv.innerHTML = `<p>${data.error}</p>`;
+                contentDiv.innerHTML = '';
+            } else {
+                errorDiv.innerHTML = '';
+                contentDiv.innerHTML = `<pre>${data.content}</pre>`;
+            }
+
+        };
+
+        form.onsubmit = function (event) {
+            event.preventDefault();
+            const command = commandInput.value;
+            ws.send(command);
+        };
+    </script>
 </body>
 
 </html>
