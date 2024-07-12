@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Console</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="./express-console-client.js"></script>
+    <style>
+        *,
+        html {
+            font-family: "Courier New", Helvetica, sans-serif;
+            font-size: large;
+        }
+
+        form {
+            margin-left: 25px;
+            margin-top: 25px;
+        }
+
+        input {
+            border: 1px solid black;
+        }
+
+        button {
+            padding: 0 5px;
+        }
+
+        p {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <form id="command-form">
+        <input type="text" id="command-input" name="command" placeholder="Enter ls command" required>
+        <button type="submit" id="submit-button">Enter</button>
+    </form>
+    <div id="content"></div>
+    <div id="error"></div>
+</body>
+
+</html>
