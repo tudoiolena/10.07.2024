@@ -84,7 +84,7 @@ for (let i = 0; i < childDivs.length; i++) {
 }
 
 function changeFavicon(src: string) {
-  const faviconLink = document.getElementById("favicon");
+  const faviconLink = document.getElementById("favicon") as HTMLLinkElement;
   faviconLink.href = src;
 }
 
