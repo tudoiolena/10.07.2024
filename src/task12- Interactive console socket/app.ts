@@ -1,5 +1,5 @@
 import * as http from "http";
-const url = require("node:url");
+import * as WebSocket from "ws";
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const fsPromises = require("node:fs/promises");
@@ -53,26 +53,6 @@ const ALLOWED_LONG_OPTIONS: string[] = [
   "--help",
   "--version",
 ];
-
-async function createHTML(
-  content: string = "",
-  error?: string
-): Promise<string> {
-  let template = await fsPromises.readFile(
-    path.resolve(CURR_DIR, "task12.html"),
-    "utf-8"
-  );
-
-  if (error) {
-    template = template.replace("<!-- error -->", `<p>${error}</p>`);
-  }
-
-  if (content) {
-    template = template.replace("<!-- content -->", `<pre>${content}</pre>`);
-  }
-
-  return template;
-}
 
 function validateCommand(command: string): boolean {
   const parts = command.trim().split(" ");
@@ -156,99 +136,49 @@ async function performLsCommand(command: string): Promise<string> {
     });
   });
 }
-
-async function handleLsCommand(command: string): Promise<string> {
-  try {
-    const result = await performLsCommand(command);
-    return await createHTML(result);
-  } catch (error) {
-    return await createHTML("", error.message);
+const server = http.createServer(
+  (req: http.IncomingMessage, res: http.ServerResponse) => {
+    const filePath = path.resolve(__dirname, "index.html");
+    res.writeHead(200, { "Content-Type": "text/html" });
+    fsPromises
+      .readFile(filePath)
+      .then((content) => res.end(content))
+      .catch((err) => {
+        res.statusCode = 500;
+        res.end("Internal Server Error", err.message);
+      });
   }
-}
+);
 
-function response(
-  res: http.ServerResponse,
-  html: string = "",
-  code: number = 200
-): void {
-  res.writeHead(code);
-  res.end(html);
-}
+const wss = new WebSocket.Server({ server });
 
-function successResponse(res: http.ServerResponse, html: string = ""): void {
-  return response(res, html);
-}
-
-function errResponse(
-  res: http.ServerResponse,
-  html: string = "",
-  code: number = 500
-) {
-  return response(res, html, code);
-}
-
-const requestListener = async (
-  req: http.IncomingMessage,
-  res: http.ServerResponse
-): Promise<string> => {
-  const parsedUrl = url.parse(req.url, true);
-  const { pathname, query } = parsedUrl;
-
-  if (req.method === "GET" && pathname === "/") {
-    return await createHTML();
-  } else if (req.method === "GET" && pathname === "/result") {
-    const command = query.command || "";
+wss.on("connection", (ws: WebSocket) => {
+  ws.on("message", async (message) => {
+    const command = message.toString();
 
     if (!validateCommand(command)) {
-      const html = await createHTML(
-        "",
-        'Invalid command. Only "ls" commands are allowed and no special characters.'
+      ws.send(
+        JSON.stringify({
+          error:
+            'Invalid command. Only "ls" commands are allowed and no special characters.',
+        })
       );
-      throw new HTTPError(html, 400);
+      return;
     }
 
-    return await handleLsCommand(command);
-  } else {
-    throw new HTTPError("404 Not Found", 404);
-  }
-};
-
-type Response = (
-  req: http.IncomingMessage,
-  res: http.ServerResponse
-) => Promise<void>;
-
-type Request = (
-  req: http.IncomingMessage,
-  res: http.ServerResponse
-) => Promise<string>;
-
-function wrapper(requestHandler: Request): Response {
-  return async function (req, res) {
     try {
-      const html = await requestHandler(req, res);
-      successResponse(res, html);
-    } catch (err) {
-      if (err instanceof HTTPError) {
-        errResponse(res, err.message, err.status);
-      } else {
-        errResponse(res, err.message || "unknown", 500);
-      }
+      const result = await performLsCommand(command);
+      ws.send(JSON.stringify({ content: result }));
+    } catch (error) {
+      ws.send(JSON.stringify({ error: error.message }));
     }
-  };
-}
+  });
 
-const server = http.createServer(wrapper(requestListener));
-
-server.listen(3000, () => {
-  console.log("Server is listening on port 3000");
+  ws.on("error", (error) => {
+    console.error("WebSocket error:", error.message);
+  });
 });
 
-class HTTPError extends Error {
-  status = 500;
-
-  constructor(message = "", status) {
-    super(message);
-    this.status = status || this.status;
-  }
-}
+server.listen(3001, () => {
+  console.log("Server is listening on port 3001");
+});

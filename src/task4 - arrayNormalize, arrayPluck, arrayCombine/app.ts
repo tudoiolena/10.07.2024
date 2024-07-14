@@ -281,7 +281,7 @@ function normalizeObject(
   arr: Array<unknown>,
   scheme: Record<string, TScheme>,
   transform: boolean = false
-): Array<string | number | boolean | Function> {
+): Result[] {
   const arrOfNormalizedObject = [];
 
   const arrOfObj = arr.filter((el) => typeof el === "object");

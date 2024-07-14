@@ -5,8 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Console</title>
-    <script src="/socket.io/socket.io.js"></script>
-    <script type="module" src="./express-console-client.js"></script>
     <style>
         *,
         html {
@@ -40,6 +38,9 @@
     </form>
     <div id="content"></div>
     <div id="error"></div>
+
+    <script defer src="/socket.io/socket.io.js"></script>
+    <script defer type="module" src="express-console-client.js"></script>
 </body>
 
 </html>

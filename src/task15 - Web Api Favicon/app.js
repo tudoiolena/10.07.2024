@@ -7,16 +7,16 @@
 const divElement = document.getElementById("div-element");
 const childDivs = divElement.children;
 
-function handleResize(entries) {
-  for (let entry of entries) {
-    const { width, height } = entry.contentRect;
+// function handleResize(entries) {
+//   for (let entry of entries) {
+//     const { width, height } = entry.contentRect;
 
-    for (let childDiv of childDivs) {
-      childDiv.style.width = `${width / childDivs.length}px`;
-      childDiv.style.height = `${height}px`;
-    }
-  }
-}
+//     for (let childDiv of childDivs) {
+//       childDiv.style.width = `${width / childDivs.length}px`;
+//       childDiv.style.height = `${height}px`;
+//     }
+//   }
+// }
 
 const resizeObserver = new ResizeObserver(handleResize);
 resizeObserver.observe(divElement);

@@ -36,7 +36,7 @@ async function captureImage(): Promise<void> {
 captureButton.addEventListener("click", captureImage);
 
 //Resize Observer for responsive
-function handleResize(entries: ResizeObserverEntry[]): void {
+function handleResize2(entries: ResizeObserverEntry[]): void {
   for (let entry of entries) {
     const { width, height } = entry.contentRect;
     video.style.setProperty("width", `${width}px`);
@@ -46,8 +46,8 @@ function handleResize(entries: ResizeObserverEntry[]): void {
   }
 }
 
-const resizeObserver = new ResizeObserver(handleResize);
-resizeObserver.observe(video);
+const resizeObserv = new ResizeObserver(handleResize2);
+resizeObserv.observe(video);
 
 // Page Visibility API to stop stream when hidden - ?!?!
 function stopVideoStream(): void {

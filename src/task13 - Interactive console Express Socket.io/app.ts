@@ -1,13 +1,13 @@
-import * as http from "http";
-import * as WebSocket from "ws";
-const url = require("node:url");
-const path = require("node:path");
+const http = require("node:http");
+const { Server: SocketIOServer, Socket } = require("socket.io");
+const path1 = require("node:path");
 const { spawn } = require("node:child_process");
 const fsPromises = require("node:fs/promises");
+const express = require("express");
 
 const LS = "ls";
-const CURR_DIR: string = __dirname;
-const DATA_DIR: string = path.resolve(CURR_DIR, "data");
+const CURR_DIR1: string = __dirname;
+const DATA_DIR1: string = path1.resolve(CURR_DIR1, "data");
 const FORBIDDEN_OPTIONS: string[] = ["&&", ";", "|", "`", ",", "'", '"'];
 const ALLOWED_SHORT_OPTIONS: string =
   "aAbBcCdDfFgGhHiIlLmMnNoOpPqQrRsStTuUvVwWxX1Z";
@@ -105,7 +105,7 @@ async function performLsCommand(command: string): Promise<string> {
   return new Promise(async (resolve, reject) => {
     const commandOptions = command.split(" ").slice(1);
     const dirPath =
-      commandOptions.find((option) => !option.startsWith("-")) || DATA_DIR;
+      commandOptions.find((option) => !option.startsWith("-")) || DATA_DIR1;
 
     if (!(await checkIfPathExist(dirPath))) {
       return reject(new Error("Dir or file does not exist"));
@@ -137,49 +137,84 @@ async function performLsCommand(command: string): Promise<string> {
     });
   });
 }
-const server = http.createServer(
-  (req: http.IncomingMessage, res: http.ServerResponse) => {
-    const filePath = path.resolve(__dirname, "task12.html");
-    res.writeHead(200, { "Content-Type": "text/html" });
+
+function response(socket: typeof Socket, event: string, data: string) {
+  socket.emit(event, data);
+}
+
+function successResponse(socket: typeof Socket, data: string) {
+  return response(socket, "content", data);
+}
+
+function errorResponse(socket: typeof Socket, data: string) {
+  return response(socket, "error", data);
+}
+
+function socketWrapper(handlerFunction) {
+  return function (socket: typeof Socket) {
+    socket.on("message", async (data) => {
+      try {
+        const response = await handlerFunction(socket, data);
+        successResponse(socket, response);
+      } catch (err) {
+        if (err instanceof SocketError) {
+          errorResponse(socket, err.message);
+        } else {
+          errorResponse(socket, "unknown");
+        }
+      }
+    });
+  };
+}
+
+const app = express();
+const server = http.createServer(app);
+
+app.get(
+  "/task13",
+  (req: typeof express.Request, res: typeof express.Response) => {
+    const filePath = path1.resolve(CURR_DIR1, "index.html");
     fsPromises
-      .readFile(filePath)
-      .then((content) => res.end(content))
+      .readFile(filePath, "utf-8")
+      .then((content) => {
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end(content);
+      })
       .catch((err) => {
-        res.statusCode = 500;
-        res.end("Internal Server Error", err.message);
+        res.status(500).end("Internal Server Error: " + err.message);
       });
   }
 );
 
-const wss = new WebSocket.Server({ server });
+app.use(express.static(CURR_DIR1));
 
-wss.on("connection", (ws: WebSocket) => {
-  ws.on("message", async (message) => {
-    const command = message.toString();
+const io = new SocketIOServer(server);
 
+io.on("connection", (socket: typeof Socket) => {
+  handleLsCommand(socket);
+});
+
+const handleLsCommand = socketWrapper(
+  async (socket: typeof Socket, command: string) => {
     if (!validateCommand(command)) {
-      ws.send(
-        JSON.stringify({
-          error:
-            'Invalid command. Only "ls" commands are allowed and no special characters.',
-        })
+      throw new SocketError(
+        'Invalid command. Only "ls" commands are allowed and no special characters.',
+        400
       );
-      return;
     }
+    return await performLsCommand(command);
+  }
+);
 
-    try {
-      const result = await performLsCommand(command);
-      ws.send(JSON.stringify({ content: result }));
-    } catch (error) {
-      ws.send(JSON.stringify({ error: error.message }));
-    }
-  });
-
-  ws.on("error", (error) => {
-    console.error("WebSocket error:", error.message);
-  });
+server.listen(3001, () => {
+  console.log("Server is listening on port 3001");
 });
 
-server.listen(3000, () => {
-  console.log("Server is listening on port 3000");
-});
+class SocketError extends Error {
+  status = 500;
+
+  constructor(message = "", status) {
+    super(message);
+    this.status = status || this.status;
+  }
+}

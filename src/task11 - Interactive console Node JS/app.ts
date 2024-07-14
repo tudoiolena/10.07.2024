@@ -1,10 +1,8 @@
 import * as http from "http";
-import { Request, Response } from "express";
-import { Server as SocketIOServer, Socket } from "socket.io";
+const url = require("node:url");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const fsPromises = require("node:fs/promises");
-const express = require("express");
 
 const LS = "ls";
 const CURR_DIR: string = __dirname;
@@ -55,6 +53,26 @@ const ALLOWED_LONG_OPTIONS: string[] = [
   "--help",
   "--version",
 ];
+
+async function createHTML(
+  content: string = "",
+  error?: string
+): Promise<string> {
+  let template = await fsPromises.readFile(
+    path.resolve(CURR_DIR, "index.html"),
+    "utf-8"
+  );
+
+  if (error) {
+    template = template.replace("<!-- error -->", `<p>${error}</p>`);
+  }
+
+  if (content) {
+    template = template.replace("<!-- content -->", `<pre>${content}</pre>`);
+  }
+
+  return template;
+}
 
 function validateCommand(command: string): boolean {
   const parts = command.trim().split(" ");
@@ -139,76 +157,94 @@ async function performLsCommand(command: string): Promise<string> {
   });
 }
 
-function response(socket: Socket, event: string, data: string) {
-  socket.emit(event, data);
+async function handleLsCommand(command: string): Promise<string> {
+  try {
+    const result = await performLsCommand(command);
+    return await createHTML(result);
+  } catch (error) {
+    return await createHTML("", error.message);
+  }
 }
 
-function successResponse(socket: Socket, data: string) {
-  return response(socket, "content", data);
+function response(
+  res: http.ServerResponse,
+  html: string = "",
+  code: number = 200
+): void {
+  res.writeHead(code);
+  res.end(html);
 }
 
-function errorResponse(socket: Socket, data: string) {
-  return response(socket, "error", data);
+function successResponse(res: http.ServerResponse, html: string = ""): void {
+  return response(res, html);
 }
 
-function socketWrapper(handlerFunction) {
-  return function (socket: Socket) {
-    socket.on("message", async (data) => {
-      try {
-        const response = await handlerFunction(socket, data);
-        successResponse(socket, response);
-      } catch (err) {
-        if (err instanceof SocketError) {
-          errorResponse(socket, err.message);
-        } else {
-          errorResponse(socket, "unknown");
-        }
+function errResponse(
+  res: http.ServerResponse,
+  html: string = "",
+  code: number = 500
+) {
+  return response(res, html, code);
+}
+
+const requestListener = async (
+  req: http.IncomingMessage,
+  res: http.ServerResponse
+): Promise<string> => {
+  const parsedUrl = url.parse(req.url, true);
+  const { pathname, query } = parsedUrl;
+
+  if (req.method === "GET" && pathname === "/") {
+    return await createHTML();
+  } else if (req.method === "GET" && pathname === "/result") {
+    const command = query.command || "";
+
+    if (!validateCommand(command)) {
+      const html = await createHTML(
+        "",
+        'Invalid command. Only "ls" commands are allowed and no special characters.'
+      );
+      throw new HTTPError(html, 400);
+    }
+
+    return await handleLsCommand(command);
+  } else {
+    throw new HTTPError("404 Not Found", 404);
+  }
+};
+
+type Response = (
+  req: http.IncomingMessage,
+  res: http.ServerResponse
+) => Promise<void>;
+
+type Request = (
+  req: http.IncomingMessage,
+  res: http.ServerResponse
+) => Promise<string>;
+
+function wrapper(requestHandler: Request): Response {
+  return async function (req, res) {
+    try {
+      const html = await requestHandler(req, res);
+      successResponse(res, html);
+    } catch (err) {
+      if (err instanceof HTTPError) {
+        errResponse(res, err.message, err.status);
+      } else {
+        errResponse(res, err.message || "unknown", 500);
       }
-    });
+    }
   };
 }
 
-const app = express();
-const server = http.createServer(app);
+const server = http.createServer(wrapper(requestListener));
 
-app.get("/", (req: Request, res: Response) => {
-  const filePath = path.resolve(__dirname, "client", "task13.html");
-  fsPromises
-    .readFile(filePath, "utf-8")
-    .then((content) => {
-      res.writeHead(200, { "Content-Type": "text/html" });
-      res.end(content);
-    })
-    .catch((err) => {
-      res.status(500).end("Internal Server Error: " + err.message);
-    });
+server.listen(3001, () => {
+  console.log("Server is listening on port 3001");
 });
 
-app.use(express.static(path.join(__dirname, "client")));
-
-const io = new SocketIOServer(server);
-
-io.on("connection", (socket: Socket) => {
-  handleLsCommand(socket);
-});
-
-const handleLsCommand = socketWrapper(
-  async (socket: Socket, command: string) => {
-    if (!validateCommand(command)) {
-      throw new SocketError(
-        'Invalid command. Only "ls" commands are allowed and no special characters.',
-        400
-      );
-    }
-    return await performLsCommand(command);
-  }
-);
-
-server.listen(3000, () => {
-  console.log("Server is listening on port 3000");
-});
-
-class SocketError extends Error {
+class HTTPError extends Error {
   status = 500;
 
   constructor(message = "", status) {

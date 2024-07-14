@@ -4,7 +4,10 @@
     "module": "commonjs",
     "lib": ["dom", "dom.iterable", "es2021"],
     "rootDir": "./src",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]

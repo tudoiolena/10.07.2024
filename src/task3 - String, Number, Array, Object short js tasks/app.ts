@@ -79,12 +79,14 @@ function getModifiedArray(
 }
 
 //2.
-type TItem = {
-  name: string;
+type TPrice = {
   price: number;
 };
+type TItem = TPrice & {
+  name: string;
+};
 
-function countTotalPrice(items: TItem[]): number {
+function countTotalPrice(items: TPrice[]): number {
   let totalPrice = 0;
   items.forEach((item) => {
     totalPrice += item.price;
@@ -98,15 +100,13 @@ const items1: TItem[] = [
 ];
 
 //3.
-
-type TItem2 = {
-  name: string;
+type ICategory = {
   category: string;
 };
 
-interface ICategory {
-  category: string;
-}
+type TItem2 = ICategory & {
+  name: string;
+};
 
 function groupItemsByCategory(items: TItem2[]): {
   [category: string]: TItem2[];
@@ -170,12 +170,8 @@ const array: NestedArray = [
 
 /* Objects */
 //1.
-type TObject = {};
-function isEmpty<T>(obj: T): boolean {
-  for (let key in obj) {
-    return false;
-  }
-  return true;
+function isEmpty<T extends Record<any, any>>(obj: T): boolean {
+  return Object.keys(obj).length === 0;
 }
 let schedule = {};
 console.log("OBJECTS. TASK1");
@@ -184,10 +180,7 @@ schedule["8:30"] = "Вставай";
 console.log(isEmpty(schedule));
 
 //2.
-type TSalary = {
-  [key: string]: number;
-};
-
+type TSalary = Record<string, number>;
 function sumSalary(salaries: TSalary): number {
   let sum = 0;
   for (let key in salaries) {
@@ -207,9 +200,7 @@ console.log(sumSalary({}));
 
 //3.
 
-type TObj = {
-  [key: string]: number | string | boolean;
-};
+type TObj = Record<string, number | string | boolean>;
 function multiplyNumeric(obj: TObj): TObj {
   for (let key in obj) {
     const value = obj[key];
@@ -226,10 +217,7 @@ let menu: TObj = {
 };
 
 //4.
-type TObjects = {
-  [key: string]: number | string;
-};
-
+type TObjects = Record<string, number | string>;
 function newObject(...objects: Record<string, number | string>[]): TObjects {
   return Object.assign({}, ...objects);
 }

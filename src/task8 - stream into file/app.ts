@@ -9,12 +9,12 @@ const path = require("node:path");
 const stream = require("node:stream");
 
 const CURR_DIR = __dirname;
-const DATA_DIR = path.resolve(CURR_DIR, "data");
+const DATA_DIR = path1.resolve(CURR_DIR1, "data");
 
 const sysInfo = JSON.stringify(proess);
 
 const sysInfoCopyFileName = "copied-sysinfo.json";
-const sysInfoCopyFile = path.resolve(DATA_DIR, sysInfoCopyFileName);
+const sysInfoCopyFile = path1.resolve(DATA_DIR1, sysInfoCopyFileName);
 
 const readableStream = new stream.Readable({
   read(size) {
